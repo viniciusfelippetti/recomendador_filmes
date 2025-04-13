@@ -1,0 +1,41 @@
+version: '3.12'
+
+services:
+  db:
+    image: postgres:16
+    volumes:
+      - db_data:/var/lib/postgresql/data/
+    environment:
+      POSTGRES_DB: recomendador_filmes
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin123
+
+  web:
+    build: .
+    command: >
+      sh -c "wait-for-it db:5433 -- python manage.py makemigrations &&
+             python manage.py migrate &&
+             python manage.py configuracoes_iniciais &&
+             python manage.py importar_filmes_generos &&
+             python manage.py importar_avaliacoes &&
+             python manage.py runserver 0.0.0.0:8000" &&
+             sleep 5 && 
+             pytest filmes/tests.py"
+    volumes:
+      - .:/recomendador_filmes
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=1
+      - DJANGO_ALLOWED_HOSTS=localhost 127.0.0.1 [::1]
+      - SQL_ENGINE=django.db.backends.postgresql
+      - SQL_DATABASE=recomendador_filmes
+      - SQL_USER=postgres
+      - SQL_PASSWORD=admin123
+      - SQL_HOST=db  # Certifique-se de usar o nome do serviço do banco de dados
+      - SQL_PORT=5433
+    depends_on:
+      - db
+
+volumes:
+  db_data:
